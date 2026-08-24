@@ -31,7 +31,19 @@ async def get_appointments(
         order_dir == "desc")).limit(limit)
 
     result = query.execute()
-    return {"total": len(result.data), "appointments": result.data}
+    appointments = result.data
+
+    doctor_ids = list({a["doctor_id"]
+                      for a in appointments if a.get("doctor_id")})
+    doctor_names = {}
+    if doctor_ids:
+        doctors = supabase.table("doctors").select(
+            "doctor_id, full_name").in_("doctor_id", doctor_ids).execute()
+        doctor_names = {d["doctor_id"]: d["full_name"] for d in doctors.data}
+    for a in appointments:
+        a["doctor_name"] = doctor_names.get(a["doctor_id"])
+
+    return {"total": len(appointments), "appointments": appointments}
 
 
 @router.post("", status_code=201)
